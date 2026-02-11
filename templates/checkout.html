@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout | Hop & Barley{% endblock %}
+
+{% block content %}
+<div class="checkout-page-wrapper">
+    <div class="container">
+        <div class="checkout-container">
+            <h1 class="checkout-title">Order Details</h1>
+
+            {% if cart_items %}
+                <form id="checkout-form" method="post" action="{% url 'orders:checkout' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Shipping Information -->
+                    <section class="checkout-section">
+                        <h2 class="checkout-section__title">Shipping information</h2>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_full_name">Full Name</label>
+                            <input type="text" id="id_full_name" name="full_name" class="Input" 
+                                   placeholder="John Doe" value="{{ form.full_name.value|default:'' }}" required>
+                            {% if form.full_name.errors %}
+                                <div class="error-text">{{ form.full_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_phone">Phone number</label>
+                            <input type="tel" id="id_phone" name="phone" class="Input" 
+                                   placeholder="+1 (555) 123-4567" value="{{ form.phone.value|default:'' }}" required>
+                            {% if form.phone.errors %}
+                                <div class="error-text">{{ form.phone.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_email">Email (optional)</label>
+                            <input type="email" id="id_email" name="email" class="Input" 
+                                   placeholder="john@example.com" value="{{ form.email.value|default:'' }}">
+                            {% if form.email.errors %}
+                                <div class="error-text">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_city">City</label>
+                            <input type="text" id="id_city" name="city" class="Input" 
+                                   placeholder="New York" value="{{ form.city.value|default:'' }}" required>
+                            {% if form.city.errors %}
+                                <div class="error-text">{{ form.city.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_address">Shipping address</label>
+                            <textarea id="id_address" name="address" class="Textarea" 
+                                      placeholder="123 Main St, Apt 4B" rows="2" required>{{ form.address.value|default:'' }}</textarea>
+                            {% if form.address.errors %}
+                                <div class="error-text">{{ form.address.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="checkout-form-group">
+                            <label for="id_postal_code">Postal Code (optional)</label>
+                            <input type="text" id="id_postal_code" name="postal_code" class="Input" 
+                                   placeholder="10001" value="{{ form.postal_code.value|default:'' }}">
+                            {% if form.postal_code.errors %}
+                                <div class="error-text">{{ form.postal_code.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    <!-- Payment Method -->
+                    <section class="checkout-section">
+                        <h2 class="checkout-section__title">Payment Method</h2>
+                        <div class="payment-options">
+                            <label class="radio-option">
+                                <input type="radio" name="payment_method" value="debit" 
+                                       {% if form.payment_method.value == 'debit' or not form.payment_method.value %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">Debit Card</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="payment_method" value="credit" 
+                                       {% if form.payment_method.value == 'credit' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">Credit Card</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="payment_method" value="cash" 
+                                       {% if form.payment_method.value == 'cash' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">Cash On Delivery</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="payment_method" value="paypal" 
+                                       {% if form.payment_method.value == 'paypal' %}checked{% endif %}>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">PayPal</span>
+                            </label>
+                        </div>
+                        {% if form.payment_method.errors %}
+                            <div class="error-text">{{ form.payment_method.errors.0 }}</div>
+                        {% endif %}
+                    </section>
+
+                    <!-- Order Summary -->
+                    <section class="checkout-section">
+                        <h2 class="checkout-section__title">Order Summary</h2>
+                        
+                        <div class="order-items">
+                            {% for item in cart_items %}
+                                <div class="order-item">
+                                    <div class="order-item__info">
+                                        <span class="order-item__name">{{ item.product.name }}</span>
+                                        <span class="order-item__quantity">x{{ item.quantity }}</span>
+                                    </div>
+                                    <span class="order-item__price">${{ item.total_price|floatformat:2 }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="summary-total">
+                            <span>Total:</span>
+                            <span class="total-amount">${{ total_price|floatformat:2 }}</span>
+                        </div>
+                        
+                        <button type="submit" class="button button--primary button--pay" id="pay-button">
+                            <i class="fa-solid fa-lock"></i>
+                            Pay Now
+                        </button>
+                    </section>
+                </form>
+            {% else %}
+                <!-- Empty Cart -->
+                <div class="empty-cart">
+                    <div class="empty-cart__icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                    <h2 class="empty-cart__title">Your cart is empty</h2>
+                    <p class="empty-cart__text">Add some products to your cart before checkout.</p>
+                    <a href="{% url 'product_list' %}" class="button button--primary">
+                        <i class="fa-solid fa-store"></i>
+                        Continue Shopping
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .order-items {
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--border-default);
+        padding-bottom: 16px;
+    }
+    
+    .order-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-default);
+    }
+    
+    .order-item:last-child {
+        border-bottom: none;
+    }
+    
+    .order-item__info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .order-item__name {
+        font-weight: 500;
+        color: var(--black-main);
+    }
+    
+    .order-item__quantity {
+        color: var(--grey-text);
+        font-size: 14px;
+    }
+    
+    .order-item__price {
+        font-weight: 600;
+        color: var(--black-main);
+    }
+    
+    .summary-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        font-size: 20px;
+        font-weight: 700;
+        border-top: 2px solid var(--border-default);
+        margin-top: 8px;
+    }
+    
+    .total-amount {
+        color: var(--green);
+    }
+    
+    .button--pay {
+        width: 100%;
+        height: 48px;
+        font-size: 18px;
+        margin-top: 16px;
+    }
+    
+    .button--pay i {
+        margin-right: 8px;
+    }
+    
+    .error-text {
+        color: #dc3545;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+    
+    .empty-cart {
+        text-align: center;
+        padding: 64px 24px;
+        background: var(--background-default);
+        border: 1px solid var(--border-default);
+        border-radius: 16px;
+    }
+    
+    .empty-cart__icon {
+        font-size: 64px;
+        color: var(--grey-text);
+        margin-bottom: 24px;
+    }
+    
+    .empty-cart__title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--black-main);
+    }
+    
+    .empty-cart__text {
+        color: var(--grey-text);
+        margin-bottom: 24px;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkoutForm = document.getElementById('checkout-form');
+    const payButton = document.getElementById('pay-button');
+    
+    if (checkoutForm && payButton) {
+        checkoutForm.addEventListener('submit', function(e) {
+            // Блокируем кнопку при отправке
+            payButton.disabled = true;
+            payButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        });
+    }
+});
+</script>
+{% endblock %}

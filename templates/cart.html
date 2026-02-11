@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart | Hop & Barley{% endblock %}
+
+{% block content %}
+<div class="cart-page-wrapper">
+    <div class="container">
+        <div class="cart-container">
+            <h1 class="cart-title">Shopping Cart</h1>
+
+            {% if cart_items %}
+                <!-- Список товаров в корзине -->
+                <div class="cart-items-list">
+                    {% for item in cart_items %}
+                    <div class="cart-item" data-product-id="{{ item.product.id }}">
+                        <div class="cart-item__image-wrapper">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="cart-item__image">
+                            {% else %}
+                                <img src="{% static 'img/products/default_product.jpg' %}" alt="{{ item.product.name }}" class="cart-item__image">
+                            {% endif %}
+                        </div>
+
+                        <div class="cart-item__body">
+                            <div class="cart-item__details">
+                                <h3 class="cart-item__name">{{ item.product.name }}</h3>
+                                <div class="cart-item__price-info">
+                                    <span class="cart-item__price">${{ item.price|floatformat:2 }}</span>
+                                    <span class="cart-item__price-tag">per unit</span>
+                                </div>
+                            </div>
+
+                            <div class="cart-item__actions">
+                                <!-- Селектор количества -->
+                                <div class="cart-item__quantity-selector">
+                                    <button class="quantity-btn-cart" data-action="decrease" data-product-id="{{ item.product.id }}">
+                                        <i class="fa-solid fa-minus"></i>
+                                    </button>
+                                    <span class="quantity-value-cart" id="quantity-{{ item.product.id }}">{{ item.quantity }}</span>
+                                    <button class="quantity-btn-cart" data-action="increase" data-product-id="{{ item.product.id }}">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Кнопка удаления -->
+                                <form action="{% url 'orders:cart_remove' item.product.id %}" method="post" class="remove-from-cart-form">
+                                    {% csrf_token %}
+                                    <button type="submit" class="button--remove">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                        <span>Remove</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Итоговая сумма и оформление заказа -->
+                <div class="cart-summary__total">
+                    <p>Total:</p>
+                    <p class="total-price">${{ total_price|floatformat:2 }}</p>
+                </div>
+
+                    <!-- проверка авторизации с AJAX сохранением корзины -->
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'orders:checkout' %}" class="button button--primary button--checkout">
+                            <i class="fa-solid fa-credit-card"></i>
+                            Proceed to Checkout
+                        </a>
+                    {% else %}
+                        <button onclick="saveCartAndRedirect()" class="button button--primary button--checkout">
+                            <i class="fa-solid fa-sign-in-alt"></i>
+                            Login to Checkout
+                        </button>
+                        <p class="checkout-note">
+                            Already have an account?
+                            <button onclick="saveCartAndRedirect('login')" class="link-button">Sign in</button> or
+                            <button onclick="saveCartAndRedirect('register')" class="link-button">register</button>
+                            to complete your order.
+                        </p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <!-- Пустая корзина -->
+                <div class="empty-cart">
+                    <div class="empty-cart__icon">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                    <h2 class="empty-cart__title">Your cart is empty</h2>
+                    <p class="empty-cart__text">Looks like you haven't added any products to your cart yet.</p>
+                    <a href="{% url 'product_list' %}" class="button button--primary">
+                        <i class="fa-solid fa-store"></i>
+                        Continue Shopping
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 👇 ДОБАВЛЕНО: стили для заметки о необходимости авторизации -->
+<style>
+    .checkout-note {
+        text-align: center;
+        margin-top: 16px;
+        color: var(--grey-text);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .link-button {
+        background: none;
+        border: none;
+        color: var(--green);
+        font-weight: 500;
+        font-size: 14px;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        display: inline;
+    }
+
+    .link-button:hover {
+        color: var(--dark-green);
+        text-decoration: underline;
+    }
+
+    .button--checkout {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: none;
+        cursor: pointer;
+    }
+
+    .button--checkout i {
+        font-size: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 👇 ФУНКЦИЯ ДЛЯ СОХРАНЕНИЯ КОРЗИНЫ ПЕРЕД ЛОГИНОМ
+function saveCartAndRedirect(destination = 'login') {
+    // Показываем индикатор загрузки
+    const buttons = document.querySelectorAll('.button--checkout');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving cart...';
+    });
+
+    // Отправляем AJAX запрос для сохранения корзины
+    fetch('{% url "orders:checkout" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Перенаправляем на страницу входа или регистрации
+        let redirectUrl = '';
+        if (destination === 'login') {
+            redirectUrl = "{% url 'users:login' %}?next={% url 'orders:checkout' %}";
+        } else {
+            redirectUrl = "{% url 'users:register' %}?next={% url 'orders:checkout' %}";
+        }
+        window.location.href = redirectUrl;
+    })
+    .catch(error => {
+        console.error('Error saving cart:', error);
+        // В случае ошибки всё равно перенаправляем
+        let redirectUrl = '';
+        if (destination === 'login') {
+            redirectUrl = "{% url 'users:login' %}?next={% url 'orders:checkout' %}";
+        } else {
+            redirectUrl = "{% url 'users:register' %}?next={% url 'orders:checkout' %}";
+        }
+        window.location.href = redirectUrl;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка изменения количества
+    document.querySelectorAll('.quantity-btn-cart').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            const productId = this.dataset.productId;
+            const action = this.dataset.action;
+            const quantitySpan = document.getElementById(`quantity-${productId}`);
+            let currentQuantity = parseInt(quantitySpan.textContent);
+
+            // Определяем новое количество
+            let newQuantity = currentQuantity;
+            if (action === 'increase') {
+                newQuantity = currentQuantity + 1;
+            } else if (action === 'decrease') {
+                newQuantity = currentQuantity - 1;
+            }
+
+            if (newQuantity < 1) return;
+
+            // Отправляем AJAX запрос на обновление
+            fetch(`/orders/cart/update/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `quantity=${newQuantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    quantitySpan.textContent = newQuantity;
+
+                    // Обновляем общую сумму
+                    const totalElement = document.querySelector('.total-price');
+                    if (totalElement && data.cart_total) {
+                        totalElement.textContent = `$${parseFloat(data.cart_total).toFixed(2)}`;
+                    }
+
+                    // Обновляем счетчик на иконке корзины
+                    const cartIcon = document.querySelector('.cart-icon');
+                    if (cartIcon) {
+                        const existingBadge = cartIcon.querySelector('.cart-badge');
+                        if (existingBadge) {
+                            existingBadge.textContent = data.cart_items_count;
+                        } else if (data.cart_items_count > 0) {
+                            const badge = document.createElement('span');
+                            badge.className = 'cart-badge';
+                            badge.textContent = data.cart_items_count;
+                            cartIcon.appendChild(badge);
+                        }
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // Обработка удаления товара
+    document.querySelectorAll('.remove-from-cart-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Удаляем элемент из DOM
+                    const cartItem = this.closest('.cart-item');
+                    cartItem.remove();
+
+                    // Обновляем общую сумму
+                    const totalElement = document.querySelector('.total-price');
+                    if (totalElement && data.cart_total) {
+                        totalElement.textContent = `$${parseFloat(data.cart_total).toFixed(2)}`;
+                    }
+
+                    // Если корзина пуста, показываем сообщение
+                    const cartItemsList = document.querySelector('.cart-items-list');
+                    if (cartItemsList && cartItemsList.children.length === 0) {
+                        location.reload();
+                    }
+
+                    // Обновляем счетчик на иконке корзины
+                    const cartIcon = document.querySelector('.cart-icon');
+                    if (cartIcon) {
+                        const badge = cartIcon.querySelector('.cart-badge');
+                        if (badge) {
+                            badge.textContent = data.cart_items_count;
+                        }
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+});
+</script>
+{% endblock %}
